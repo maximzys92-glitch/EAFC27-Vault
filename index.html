@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0f19">
+<title>EAFC27 Vault — Investment Copilot</title>
+<style>
+:root{--bg:#070a11;--panel:#101522;--panel2:#151b2a;--text:#f5f7fb;--muted:#8f9bb0;--line:#252d40;--green:#45e39a;--yellow:#ffd166;--red:#ff6b7a;--blue:#6ea8ff}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#080b13,#0b0f18);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,Arial,sans-serif}
+.wrap{max-width:1100px;margin:auto;padding:18px 16px 100px}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-size:23px;font-weight:800}.sub{color:var(--muted);font-size:13px;margin-top:4px}
+.status{font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:999px;background:#0d1320;color:var(--green)}
+.hero{margin-top:18px;padding:20px;border:1px solid var(--line);border-radius:22px;background:radial-gradient(circle at 90% 0,#19365e55,transparent 45%),var(--panel)}
+h1{font-size:30px;line-height:1.05;margin:0 0 8px}.hero p{color:var(--muted);margin:0;line-height:1.45}
+.budgets{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:18px}.budget{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:12px 8px;border-radius:14px;font-weight:800}.budget.active{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.grid{display:grid;grid-template-columns:1.35fr .65fr;gap:14px;margin-top:14px}.card{border:1px solid var(--line);border-radius:20px;background:var(--panel);padding:16px}.title{font-weight:800;font-size:17px;margin-bottom:12px}.muted{color:var(--muted)}
+.table{width:100%;border-collapse:collapse}.table th,.table td{padding:11px 8px;border-bottom:1px solid var(--line);text-align:left;font-size:13px}.table th{color:var(--muted);font-weight:600}.pill{display:inline-block;padding:5px 8px;border-radius:999px;font-size:11px;font-weight:800}.buy{background:#103c2a;color:var(--green)}.watch{background:#3b3211;color:var(--yellow)}.sell{background:#401820;color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}.kpi{background:var(--panel2);border:1px solid var(--line);border-radius:15px;padding:13px}.kpi b{display:block;font-size:19px;margin-top:5px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.input{background:#0c111c;border:1px solid var(--line);border-radius:12px;padding:11px;color:var(--text);min-width:150px}
+button{font:inherit;cursor:pointer}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:10px 13px;border-radius:12px;font-weight:700}.btn.primary{background:var(--green);color:#07130d;border-color:var(--green)}
+.note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:10px}.small{font-size:11px;color:var(--muted)}
+.trade-form{display:grid;grid-template-columns:1.4fr .8fr .8fr .8fr auto;gap:8px}.trade-list{margin-top:12px}
+.empty{padding:20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}
+footer{margin-top:18px;color:var(--muted);font-size:11px;line-height:1.5}
+@media(max-width:760px){.budgets{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.trade-form{grid-template-columns:1fr 1fr}.trade-form .wide{grid-column:1/-1}.table{min-width:720px}.tablewrap{overflow:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="brand">EAFC27 Vault</div><div class="sub">Investment Copilot · manuell kaufen, selbst entscheiden</div></div>
+    <div id="status" class="status">Demo-Modus</div>
+  </div>
+
+  <section class="hero">
+    <h1>Was soll ich heute kaufen?</h1>
+    <p>Wähle dein Coin-Budget. Der Vault berechnet Kauf-Limit, Zielverkauf, Menge und Gewinn nach 5 % EA-Steuer.</p>
+    <div class="budgets" id="budgets"></div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <div class="title">🟢 Heutiger Einkaufsplan</div>
+      <div class="controls">
+        <button class="btn primary" onclick="refreshData()">↻ Aktualisieren</button>
+        <span class="small" id="updated"></span>
+      </div>
+      <div class="tablewrap"><table class="table"><thead><tr>
+        <th>Signal</th><th>Spieler</th><th>Aktuell</th><th>Kaufen bis</th><th>Ziel</th><th>Gewinn/Stk.</th><th>Menge</th>
+      </tr></thead><tbody id="ideas"></tbody></table></div>
+      <div class="note">Die Marktpreise sind Referenzwerte. Ein BUY-Signal ist keine Garantie für Gewinn. Du kaufst/verkaufst ausschließlich selbst in EA FC 27.</div>
+    </section>
+
+    <aside class="card">
+      <div class="title">📊 Dein Budget</div>
+      <div class="kpis">
+        <div class="kpi"><span class="muted">Budget</span><b id="budgetKpi">50K</b></div>
+        <div class="kpi"><span class="muted">Plan-Einsatz</span><b id="allocKpi">0</b></div>
+        <div class="kpi"><span class="muted">Möglicher Gewinn*</span><b id="profitKpi">0</b></div>
+        <div class="kpi"><span class="muted">Ø ROI*</span><b id="roiKpi">0%</b></div>
+      </div>
+      <div class="note">* Szenario auf Basis der berechneten Zielpreise, nicht garantiert.</div>
+    </aside>
+  </div>
+
+  <section class="card" style="margin-top:14px">
+    <div class="title">📝 Meine Trades</div>
+    <div class="trade-form">
+      <input id="tName" class="input wide" placeholder="Spieler / Karte">
+      <input id="tBuy" class="input" type="number" placeholder="Kaufpreis">
+      <input id="tQty" class="input" type="number" placeholder="Menge">
+      <input id="tSell" class="input" type="number" placeholder="Verkaufspreis">
+      <button class="btn primary" onclick="addTrade()">Speichern</button>
+    </div>
+    <div class="trade-list" id="trades"></div>
+  </section>
+
+  <footer>
+    Datenhinweis: FCUTeam beschreibt seine FC-27-Marktdaten als Community-Transfermarktpreise und gibt eine stündliche Preisaktualisierung an. 
+    Die Website selbst darf keine EA-Anmeldedaten enthalten und führt keine automatischen Transfers aus.
+  </footer>
+</div>
+<script>
+const TAX=.05;
+const budgets=[50000,100000,250000,500000,750000,1000000];
+let selected=50000;
+let market=[];
+let trades=JSON.parse(localStorage.getItem("vault_trades")||"[]");
+
+const demo=[
+ {name:"Bruno Fernandes",rating:89,pos:"CAM",price:42000,low:36500,target:48000,trend:1.14},
+ {name:"Paulo Dybala",rating:85,pos:"CAM",price:17000,low:14500,target:20500,trend:1.08},
+ {name:"Joe Cole",rating:87,pos:"RW",price:270000,low:245000,target:315000,trend:1.06},
+ {name:"Roy Keane",rating:89,pos:"CM",price:460000,low:415000,target:520000,trend:1.03},
+ {name:"Fernando Torres",rating:88,pos:"ST",price:1170000,low:1080000,target:1320000,trend:1.02}
+];
+
+function money(n){return Math.round(n).toLocaleString("de-DE")+" Coins"}
+function renderBudgets(){document.getElementById("budgets").innerHTML=budgets.map(b=>`<button class="budget ${b===selected?"active":""}" onclick="selectBudget(${b})">${b>=1000000?"1M":(b/1000)+"K"}</button>`).join("")}
+function selectBudget(b){selected=b;renderBudgets();renderIdeas()}
+function score(p){const margin=(p.target*(1-TAX)-p.low)/p.low; const move=Math.max(0,Math.min(1,(p.trend-1)*4)); return Math.round(Math.min(99,55+margin*180+move*20))}
+function buildPlan(){
+ let candidates=market.filter(p=>p.low>0 && p.low<selected*.7).map(p=>{
+   const sellNet=p.target*(1-TAX), profit=sellNet-p.low, roi=profit/p.low;
+   return {...p,profit,roi,score:score(p)}
+ }).filter(p=>p.profit>0).sort((a,b)=>b.score-a.score);
+ let plan=[],remaining=selected;
+ for(const p of candidates){
+   if(plan.length>=7) break;
+   const maxSpend=Math.min(remaining, Math.max(p.low, selected/4));
+   const qty=Math.max(1,Math.floor(maxSpend/p.low));
+   const spend=qty*p.low;
+   if(spend<=remaining && spend>0){plan.push({...p,qty,spend});remaining-=spend}
+ }
+ return plan;
+}
+function renderIdeas(){
+ const plan=buildPlan();
+ document.getElementById("budgetKpi").textContent=selected>=1000000?"1M":(selected/1000)+"K";
+ if(!plan.length){document.getElementById("ideas").innerHTML=`<tr><td colspan="7"><div class="empty">Keine belastbare Kaufchance im aktuellen Datensatz.</div></td></tr>`;return}
+ let alloc=0,profit=0;
+ document.getElementById("ideas").innerHTML=plan.map(p=>{alloc+=p.spend;profit+=p.profit*p.qty;return `<tr>
+ <td><span class="pill ${p.score>=75?"buy":"watch"}">${p.score>=75?"BUY":"WATCH"}</span></td>
+ <td><b>${p.name}</b><br><span class="small">${p.rating} · ${p.pos}</span></td>
+ <td>${money(p.price)}</td><td><b>${money(p.low)}</b></td><td>${money(p.target)}</td>
+ <td>${money(p.profit)}</td><td>${p.qty}×</td></tr>`}).join("");
+ document.getElementById("allocKpi").textContent=money(alloc);
+ document.getElementById("profitKpi").textContent="+"+money(profit);
+ document.getElementById("roiKpi").textContent=(alloc?((profit/alloc)*100).toFixed(1):"0")+"%";
+}
+function renderTrades(){
+ if(!trades.length){document.getElementById("trades").innerHTML='<div class="empty">Noch keine Trades gespeichert.</div>';return}
+ document.getElementById("trades").innerHTML='<div class="tablewrap"><table class="table"><thead><tr><th>Karte</th><th>Kauf</th><th>Menge</th><th>Verkauf</th><th>Netto</th><th>Gewinn</th><th></th></tr></thead><tbody>'+
+ trades.map((t,i)=>{const net=t.sell*(1-TAX),profit=(net-t.buy)*t.qty;return `<tr><td>${t.name}</td><td>${money(t.buy)}</td><td>${t.qty}</td><td>${money(t.sell)}</td><td>${money(net)}</td><td style="color:${profit>=0?"var(--green)":"var(--red)"}">${profit>=0?"+":""}${money(profit)}</td><td><button class="btn" onclick="delTrade(${i})">Löschen</button></td></tr>`}).join("")+
+ '</tbody></table></div>';
+}
+function addTrade(){const name=document.getElementById("tName").value.trim(),buy=+document.getElementById("tBuy").value,qty=+document.getElementById("tQty").value,sell=+document.getElementById("tSell").value;if(!name||!buy||!qty||!sell)return;trades.unshift({name,buy,qty,sell});localStorage.setItem("vault_trades",JSON.stringify(trades));["tName","tBuy","tQty","tSell"].forEach(id=>document.getElementById(id).value="");renderTrades()}
+function delTrade(i){trades.splice(i,1);localStorage.setItem("vault_trades",JSON.stringify(trades));renderTrades()}
+async function refreshData(){
+ document.getElementById("status").textContent="Aktualisiere…";
+ // The live adapter can be connected to a permitted market-data endpoint by setting window.VAULT_DATA_URL.
+ try{
+   if(window.VAULT_DATA_URL){
+     const r=await fetch(window.VAULT_DATA_URL+"?t="+Date.now(),{cache:"no-store"});
+     const j=await r.json(); if(Array.isArray(j.players)) market=j.players;
+   }
+ }catch(e){}
+ if(!market.length) market=demo;
+ document.getElementById("status").textContent=window.VAULT_DATA_URL?"Live-Datenquelle":"Datenquelle noch nicht verbunden";
+ document.getElementById("updated").textContent="Zuletzt geprüft: "+new Date().toLocaleString("de-DE");
+ renderIdeas();
+}
+renderBudgets();renderTrades();refreshData();
+setInterval(refreshData,15*60*1000);
+</script>
+</body>
+</html>
